@@ -1,0 +1,3 @@
+revenue_id,field_id,customer_id,booking_id,amount,payment_method,payment_status,created_time
+1,1,C1,B1,500000,cash,paid,2026-03-01 08:30:00
+2,1,C2,B2,400000,cash,unpaid,2026-03-01 12:15:00
