@@ -1,12 +1,32 @@
-from Field import Field
-from customer import Customer
+class Customer:
+    def __init__(self, customer_id, customer_name, number, status = "active"):
+        self.customer_id = customer_id
+        self.customer_name = customer_name
+        self.number = number
+        self.status = status
+    def to_string(self):
+        return f"{self.customer_id},{self.customer_name},{self.number},{self.status}"
+
+    @staticmethod
+    def from_string(data):
+        parts = data.strip().split(",")
+        return Customer(
+            parts[0],
+            parts[1],
+            parts[2],
+            parts[3] if len(parts) > 3 else "active"#nếu ai chưa set status thì tự set thành active
+        )
+
+
+    def display(self):
+        print(f"{self.customer_id:<10}{self.customer_name:<20}{self.number:<15}{self.status:<10}")
+        
 import os
 class CustomerManager:
     def __init__(self):
         self.customer= []
         self.customer_file = "customer.txt"
         self.load_customers()
-        self.field_file = "field.txt"
 
     def load_customers(self):
         if not os.path.exists(self.customer_file):
@@ -18,68 +38,32 @@ class CustomerManager:
         with open(self.customer_file,"w", encoding="utf-8") as f:
             for c in self.customer:
                 f.write(c.to_string() + "\n")
-    def load_fields(self):
-        fields = []
-        if not os.path.exists(self.field_file):
-            return fields
-        with open(self.field_file, "r", encoding="utf-8") as f:
-            for line in f:
-                field = Field.from_string(line)
-                fields.append(field)
-        return fields
-    def choose_field(self, field_type_input):
-        fields =self.load_fields()#show hết các field
-        if not fields:
-            print("No fields available")
-            return None
-        print("\n=== Available Fields ===")#chỉ là chỉnh sửa các vị trí thông tin của fields
-        print(f"{'Field ID':<10} {'Field Name':<12} {'Price':<10}")
-        print("="*30)
-        available_ids = []#danh sách các field available và chưa ai đặt
-        for field in fields:
-            if field.status=="Available" and field.field_type==field_type_input and not field.is_booking:
-                print(f"{field.field_id:<10}{field.field_type + ' players':<12}{field.cost:<10}")
-                available_ids.append(field.field_id)
-        if not available_ids:
-            print("No available fields at the moment.")
-            return None
-        while True:
-            selected_id = input("Enter Field ID to book: ").strip()
-            if selected_id not in available_ids:
-                print("No field in the list, please enter field again.")
-                continue
-            return selected_id
+    def generate_customer_id(self):
+        if not self.customer:
+            return "A0001"
+
+        last = max(self.customer, key=lambda c: (c.customer_id[0], int(c.customer_id[1:])))#so số lớn nhất để + lên thành ID t2
+        last_id = last.customer_id
+
+        letter = last_id[0]
+        number = int(last_id[1:]) + 1
+        return f"{letter}{number:04d}"
     def addCustomer(self):
         print("\n=== Add Customer ===")
-        while True:
-            customer_id = int(input("Enter Customer ID(onlynumber): "))
-            if not customer_id:
-                print("Please enter Customer ID")
-                continue
-            if any(c.customer_id == customer_id for c in self.customer):
-                print("Customer ID already exists")
-                continue
-            break
-        name = input("Enter Customer Name: ").strip()
-        phone = input("Please Enter your Phone NUmber:")
-        if not phone.isdigit():
+        
+        customer_id = self.generate_customer_id()
+        print("Customer ID:", customer_id)
+
+        customer_name = input("Enter Customer Name: ").strip()
+        number = input("Please Enter your Phone NUmber:")
+        if not number.isdigit():
             print("Phone only contain digits")
             return
-        booking_date = input("Enter Date Booking (DD-MM-YYYY)")
-        booking_time = input("Enter Booking Time:").strip()
-        if not name or not booking_time or not phone or not booking_date:
+        if not customer_name or not number:
             print("Missing Information")
             return
-        while True:
-            field_type = input("Enter Field Type (5 or 7 players): ").strip()
-            if field_type not in ["5", "7"]:
-                print("Please enter 5 or 7 only.")
-                continue
-            break
-        field_id=self.choose_field(field_type)
-        if not field_id:
-            return
-        new_customer= Customer(customer_id, name, field_id, booking_time, booking_date, phone)#mới nên count =1 nên khỏi đặt
+
+        new_customer= Customer(customer_id, customer_name, number)
         self.customer.append(new_customer)
         self.save_customer()
         print("Save Succesfully")
@@ -87,68 +71,136 @@ class CustomerManager:
         if not self.customer:
             print("No Customer")
             return
-        
-        print("\nSort by:")
-        print("1. Name (A -> Z)")
-        print("2. Booking Count (High -> Low)")
-
-        choice = input("Choose: ").strip()
-
-        if choice == "1":
-            sorted_list = sorted(self.customer, key=lambda x: x.name.lower())#sắp xếp theo từ a-> key=lambda
-        elif choice == "2":
-            sorted_list = sorted(self.customer, key=lambda x: x.booking_count, reverse=True)#đảo ngược giảm dần
-        else:
-            print("Invalid choice.")
-            return
-        print("\nID        Name                Field ID  Time           Phone           Bookings")
-        print("-" * 75)
-        for c in sorted_list:
+        print("\nID        Name               Phone           Status   ")
+        print("-" * 60)
+        for c in self.customer:
             c.display()
     def editCustomer(self):
         if not self.customer:
             print("No customers found.")
             return
-        customer_id = int(input("Enter Customer ID to edit: ").strip())
+        customer_id = input("Enter Customer ID to edit: ").strip()
         for c in self.customer:
             if c.customer_id == customer_id:
                 print("Leave blank to keep current value.\n")
 
-                new_name = input(f"New Name ({c.name}): ").strip()
-                new_time = input(f"New Booking Time ({c.booking_time}): ").strip()
-                new_phone = input(f"New Phone ({c.phone}): ").strip()
+                new_name = input(f"New Name ({c.customer_name}): ").strip()
+                new_number = input(f"New Phone ({c.number}): ").strip()
 
                 if new_name:
-                    c.name = new_name
-                if new_time:
-                    c.booking_time = new_time
-                if new_phone:
-                    if new_phone.isdigit():
-                        c.phone = new_phone
+                    c.customer_name = new_name
+                if new_number:
+                    if new_number.isdigit():
+                        c.number = new_number
                     else:
                         print("Invalid phone number. Keeping old phone.")
 
                 self.save_customer()
                 print("Customer updated successfully!")
                 return   
+    def filterCustomer(self):
+        print("\nEnter filter (0 = show all)")
+
+        customer_id = input("Customer ID: ").strip()
+        customer_name = input("Name: ").strip().lower()
+        number = input("Phone: ").strip()
+
+        results = []
+
+        for c in self.customer:
+
+            if customer_id == "0" and customer_name == "0" and number == "0":
+                results.append(c)
+                continue
+
+            if customer_id and customer_id != "0" and customer_id == c.customer_id:
+                results.append(c)
+
+            elif customer_name and customer_name != "0" and customer_name in c.customer_name.lower():
+                results.append(c)
+
+            elif number and number != "0" and number == c.number:
+                results.append(c)
+
+        if not results:
+            print("No result found")
+            return
+
+        print("\nID        Name                Phone          Status")
+        print("-" * 60)
+
+        for c in results:
+            c.display()
+    def deleteCustomer(self):
+        customer_id = input("Enter Customer ID to delete: ").strip()
+
+        for c in self.customer:
+            if c.customer_id == customer_id:
+
+                if c.status == "inactive":
+                    print("Customer already inactive")
+                    return
+
+                c.status = "inactive"
+                self.save_customer()
+
+                print("Customer set to inactive")
+                return
+
+        print("Customer not found")
     def findCustomer(self):
         if not self.customer:
             print("No customer found:")
             return
-        name_input = input("Enter Customer Name: ").strip().lower()
-        phone_input = input("Enter Phone Number: ").strip()
+        customer_name_input = input("Enter Customer Name: ").strip().lower()
+        number_input = input("Enter Phone Number: ").strip()
 
         results = [
             c for c in self.customer
-            if name_input in c.name.lower() and phone_input == c.phone
+            if customer_name_input in c.customer_name.lower() and number_input == c.number
         ]
         if not results:
             print("No matching customer found.")
-            return
-
-        print("\nID        Name                Field ID  Time           Phone           Bookings")
+            return 
+        print("\nID        Name                     Phone            Status    ")
         print("-" * 75)
         for c in results:
             c.display()
 
         
+def main():
+    manager = CustomerManager()
+
+    while True:
+        print("\n===== CUSTOMER MANAGEMENT =====")
+        print("1. Add Customer")
+        print("2. Display Customers")
+        print("3. Edit Customer")
+        print("4. Find Customer")
+        print("5 Filter Customer")
+        print("6 Delete Customer")
+        print("0. Exit")
+
+        choice = input("Choose: ").strip()
+
+        if choice == "1":
+            manager.addCustomer()
+        elif choice == "2":
+            manager.displayCustomer()
+        elif choice =="3":
+            manager.editCustomer()
+        elif choice =="4":
+            manager.findCustomer()
+        elif choice =="5":
+            manager.filterCustomer()
+        elif choice =="6":
+            manager.deleteCustomer()
+        elif choice == "0":
+            print("Exiting...")
+            break
+        else:
+            print("Invalid choice.")
+
+
+if __name__ == "__main__":
+    main()
