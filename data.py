@@ -11,30 +11,23 @@ PAYMENT_FILE = "payment.txt"
 
 @dataclass
 class CustomerRecord:
-    customer_id: str
+    customer_id: str   
     name: str
-    field_id: str
-    booking_date: str
-    booking_time: str
     phone: str
-    booking_count: int = 1
+    status: str = "active"
 
     def to_string(self) -> str:
-        return f"{self.customer_id},{self.name},{self.field_id},{self.booking_date},{self.booking_time},{self.phone},{self.booking_count}"
+        return f"{self.customer_id},{self.name},{self.phone},{self.status}"
 
     @staticmethod
     def from_string(data: str) -> "CustomerRecord":
         parts = data.strip().split(",")
-        return CustomerRecord(
-            int(parts[0]),
-            parts[1],
-            parts[2],
-            parts[3],
-            parts[4],
-            parts[5],
-            int(parts[6]) if len(parts) > 6 and parts[6] != "" else 1,
-        )
-
+         return CustomerRecord(
+        parts[0],
+        parts[1],
+        parts[2],
+        parts[3] if len(parts) > 3 else "active"
+    )
 
 @dataclass
 class FieldRecord:
