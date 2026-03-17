@@ -11,7 +11,7 @@ PAYMENT_FILE = "payment.txt"
 
 @dataclass
 class CustomerRecord:
-    customer_id: int
+    customer_id: str
     name: str
     field_id: str
     booking_date: str
