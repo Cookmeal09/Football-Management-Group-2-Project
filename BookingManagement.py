@@ -1,93 +1,186 @@
-from dataclasses import dataclass , field # tạo constructor tự động
-import datetime # để lấy thời gian hiện tại
-@dataclass 
-class Booking: # tạo class Booking với các thuộc tính và phương thức
-    booking_id: str
-    field: object
-    customer: object
-    date: str
-    schedule: str
-    _status: str = field(default=" ")
-    created_time: datetime.datetime = field(default_factory=datetime.now())
+import os
+from datetime import datetime
+from CustomerManager import CustomerManager
 
-    @property # cho phép dùng 1 hàm như 1 biến
-    def status(self):
-        return self._status # _status là biến private để lưu trữ trạng thái thực tế của booking
-
-    @status.setter # cho phép gán giá trị cho biến status nhưng có thể kiểm tra giá trị trước khi gán
-    def status(self, value): 
-        if value not in ["Booked", "In Use", "Completed", "Cancelled"]: # kiểm tra nếu giá trị không hợp lệ thì sẽ báo lỗi
-            raise ValueError("Invalid status") # nếu giá trị ko hợp lệ thì sẽ báo lỗi ngay. 
-        self._status = value # nếu giá trị hợp lệ thì sẽ gán giá trị cho biến _status
-
-    def __str__(self): # định nghĩa lại phương thức __str__ để khi in đối tượng Booking sẽ hiển thị thông tin chi tiết của booking
-        return (f"Booking ID: {self.booking_id} | "
-                f"Field: {self.field.name} | "
-                f"Customer: {self.customer.name} | "
-                f"Date: {self.date} | "
-                f"Schedule: {self.schedule} | "
-                f"Status: {self._status}")
-
-
-# =========================
-# BOOKING MANAGER
-# =========================
-class BookingManager:
-    def __init__(self, field_list, customer_list):
+class Booking:
+    def __init__(self,booking_id, booking_date, booking_status, booking_time_start, booking_time_end, booking_total_price , customer_id, field_id):
+        self.booking_id = booking_id
+        self.booking_date = booking_date
+        self.booking_status = booking_status
+        self.booking_time_start = booking_time_start
+        self.booking_time_end = booking_time_end
+        self.booking_total_price = booking_total_price
+        self.customer_id = customer_id
+        self.field_id = field_id
+    def to_string(self):
+        return f"{self.booking_id},{self.booking_date},{self.booking_status},{self.booking_time_start},{self.booking_time_end},{self.booking_total_price},{self.customer_id},{self.field_id}"
+    @staticmethod
+    def from_string(data):
+        part = data.strip().split(",")
+        return Booking(
+            part[0],
+            part[1],
+            part[2],
+            part[3],
+            part[4],
+            float(part[5]),
+            part[6],
+            part[7]
+        )
+    def display(self):
+        print(f"{self.booking_id:<10}{self.booking_date:<12}{self.booking_status:<12}{self.booking_time_start:<10}{self.booking_time_end:<10}{self.booking_total_price:<12}{self.customer_id:<10}{self.field_id:<10}")
+class BookingManagement:
+    def __init__(self):
         self.bookings = []
-        self.field_list = field_list 
-        self.customer_list = customer_list
-
-    # ADD BOOKING
-    def addBooking(self, booking_id, field_id, customer_id, date, schedule):
-        try:
-            field = next(f for f in self.field_list if f["field_id"] == field_id) # tìm kiếm sân theo field_id trong danh sách field_list, nếu không tìm thấy sẽ ném ra lỗi StopIteration
-            customer = next(c for c in self.customer_list if c["customer_id"] == customer_id)
-        except StopIteration:
-            print("Field ID or Customer ID not found!")
+        self.booking_file = "booking.txt"
+        self.load_booking()
+        self.customer_manager=CustomerManager()
+    def load_booking(self):
+        if not os.path.exists(self.booking_file):
             return
+        with open(self.booking_file, "r", encoding="utf-8") as f:
+            for line in f:
+                self.bookings.append(Booking.from_string(line))
+    def save_booking(self):
+        with open(self.booking_file, "w", encoding="utf-8") as f:
+            for b in self.bookings:
+                f.write(b.to_string() + "\n")
+    def generate_booking_id(self):
+        if not self.bookings:
+            return "B0001"
+        last = max(self.bookings, key=lambda b: (b.booking_id[0], int(b.booking_id[1:])))
+        last_id = last.booking_id
+        letter = last_id[0]
+        number = int(last_id[1:]) + 1
+        return f"{letter}{number:04d}"
+    def get_field_cost(self, field_id):
 
-        if field["status"] != "Available": 
-            print("Field is not available!")
+        with open("field.txt","r",encoding="utf-8") as f:
+
+            for line in f:
+                part = line.strip().split(",")
+
+                if part[0] == field_id:
+                    return float(part[4])   # field_cost
+        return None
+    def calculate_hours(self,start,end):
+
+        t1 = datetime.strptime(start,"%H:%M")
+        t2 = datetime.strptime(end,"%H:%M")
+
+        diff = t2 - t1
+
+        return diff.seconds / 3600
+    def _check_availability(self, field_id,booking_date ,start, end):
+        for b in self.bookings:
+            if b.field_id != field_id:
+                continue
+            if b.booking_date !=booking_date:
+                continue
+            if b.booking_status == "cancelled":
+                continue
+            if start < b.booking_time_end and end > b.booking_time_start:
+                return False
+        return True 
+    def check_customer_active(self, customer_id):
+        return self.customer_manager.check_customer_active(customer_id)
+
+    def add_booking(self, start, end, customer_id, field_id):
+        
+        if not self.check_customer_active(customer_id):
             return
+        booking_id =self.generate_booking_id()
+        print(f"Booking ID: ", booking_id)
+        booking_date = datetime.now().strftime("%Y-%m-%d")
+        if not self._check_availability(field_id,booking_date, start, end):
+            print("Field not available in this time")
+            return
+        field_cost = self.get_field_cost(field_id)
+        if field_cost is None:
+            print("Field not found")
+            return
+        hours = self.calculate_hours(start, end)
+        total_price = hours * field_cost
+        booking = Booking(
+            booking_id,
+            datetime.now().strftime("%Y-%m-%d"),
+            "pending",
+            start,
+            end,
+            total_price,
+            customer_id,
+            field_id
+        )
+        self.bookings.append(booking)
+        self.save_booking()
+        print("Booking added successfully")
+    def edit_booking_status(self, booking_id, status):
 
-        new_booking = Booking(booking_id, field, customer, date, schedule)
-        self.bookings.append(new_booking)
-        field["status"] = "Booked"
-        field.is_booking = True
+        for b in self.bookings:
 
-        print("Booking added successfully!")
+            if b.booking_id == booking_id:
 
-    # DISPLAY BOOKING
-    def displayBooking(self):
-        print("=== Current Active Bookings ===")
-        for booking in self.bookings:
-            if booking.status in ["Booked", "In Use"]:
-                print(booking)
+                b.booking_status = status
 
-    # EDIT BOOKING (CHANGE STATUS ONLY)
-    def editBooking(self, booking_id, new_status):
-        for booking in self.bookings:
-             if booking.booking_id == booking_id:
-                booking.status = new_status
+                self.save_booking()
 
-                # cập nhật trạng thái sân
-                if new_status in ["Completed", "Cancelled"]:
-                    booking.field.status = "Available"
-                    booking.field.is_booking = False
-                elif new_status == "In Use":
-                    booking.field.status = "In Use"
+                print("Booking updated")
 
-                print("Booking status updated!")
                 return
 
-        print("Booking ID not found!")
+        print("Booking not found")
+    def view_booking_list(self, status=None):
 
-    # FIND BOOKING
-    def findBooking(self, keyword):
-        print("=== Search Result ===")
-        for booking in self.bookings:
-            if (keyword == booking.booking_id or
-                str(keyword) == str(booking.customer.customer_id) or
-                keyword.lower() in booking.customer.name.lower()):
-                print(booking)
+        if not self.bookings:
+            print("No booking")
+            return
+
+        print("ID        Date        Status      Start      End        Price    Customer Field")
+        print("-"*85)
+
+        for b in self.bookings:
+
+            if status and b.booking_status != status:
+                continue
+
+            b.display()
+def main():
+
+    manager = BookingManagement()
+
+    while True:
+
+        print("\n===== BOOKING MANAGEMENT =====")
+        print("1 Add booking")
+        print("2 View booking")
+        print("3 Change booking status")
+        print("0 Exit")
+
+        choice = input("Choose: ")
+
+        if choice == "1":
+
+            start = input("Start time (HH:MM): ")
+            end = input("End time (HH:MM): ")
+            cus = input("Customer ID: ")
+            field = input("Field ID: ")
+
+            manager.add_booking(start, end, cus, field)
+
+        elif choice == "2":
+
+            manager.view_booking_list()
+
+        elif choice == "3":
+
+            bid = input("Booking ID: ")
+            status = input("Status (pending/confirmed/cancelled): ")
+
+            manager.edit_booking_status(bid, status)
+
+        elif choice == "0":
+            break
+
+
+if __name__ == "__main__":
+    main()
