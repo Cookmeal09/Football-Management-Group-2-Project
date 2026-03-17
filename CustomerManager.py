@@ -20,7 +20,7 @@ class Customer:
 
     def display(self):
         print(f"{self.customer_id:<10}{self.customer_name:<20}{self.number:<15}{self.status:<10}")
-        
+from data import load_customer_from_file, save_customer_to_file, CustomerRecord 
 import os
 class CustomerManager:
     def __init__(self):
@@ -29,15 +29,26 @@ class CustomerManager:
         self.load_customers()
 
     def load_customers(self):
-        if not os.path.exists(self.customer_file):
-            return
-        with open(self.customer_file, "r", encoding="utf-8") as f:#mở file customer.txt để đọc r đóng file lại
-            for line in f:
-                self.customer.append(Customer.from_string(line))
+        records = load_customer_from_file()
+
+        self.customer = []
+
+        for r in records:
+            c = Customer(r.customer_id, r.name, r.phone, r.status)
+            self.customer.append(c)
     def save_customer(self):
-        with open(self.customer_file,"w", encoding="utf-8") as f:
-            for c in self.customer:
-                f.write(c.to_string() + "\n")
+
+        records = []
+
+        for c in self.customer:
+            records.append(CustomerRecord(
+                c.customer_id,
+                c.customer_name,
+                c.number,
+                c.status
+            ))
+
+        save_customer_to_file(records)
     def generate_customer_id(self):
         if not self.customer:
             return "A0001"
@@ -166,7 +177,20 @@ class CustomerManager:
         print("-" * 75)
         for c in results:
             c.display()
+    def check_customer_active(self, customer_id):
 
+        for c in self.customer:
+    
+            if c.customer_id == customer_id:
+
+                if c.status == "active":
+                    return True
+                else:
+                    print("Customer is inactive")
+                    return False
+
+        print("Customer not found")
+        return False
         
 def main():
     manager = CustomerManager()
