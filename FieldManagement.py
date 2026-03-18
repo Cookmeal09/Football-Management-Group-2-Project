@@ -30,6 +30,8 @@ class FieldManagement():
         self.fields = []
         self.field_file = "field.txt"
         self.load_field()
+        
+    # từ string sang object
     def load_field(self):
         if not os.path.exists(self.field_file):
             return
@@ -41,10 +43,14 @@ class FieldManagement():
                 self.fields.append(Field.from_string(line))
             except:
                 continue
+
+    # từ object sang string
     def save_field(self):
         with open(self.field_file, "w", encoding="utf-8") as f:
             for i in self.fields:
                 f.write(i.to_string() + "\n")
+
+    # tạo ID tự động
     def generate_field_id(self):
         if not self.fields:
             return "F0001"
@@ -53,7 +59,9 @@ class FieldManagement():
         letter = last_id[0]
         number = int(last_id[1:]) + 1
         return f"{letter}{number:04d}"
-    def add_customer(self):
+
+    # thêm sân
+    def add_field(self):
         print("\n=== Add Field ===")
         field_id = self.generate_field_id()
         print("Field ID:", field_id)
@@ -81,10 +89,13 @@ class FieldManagement():
         self.field.append(new_field)
         self.save_field()
         print("Save Succesfully")
+
+    # xem sân
     def view_field_list(self):
         if not self.field:
             print("No Field")
             return
+        # format cho đẹp
         print("{:<10}{:<12}{:<10}{:<10}{:<12}".format(
             "ID",
             "Name",
@@ -96,16 +107,15 @@ class FieldManagement():
         for f in self.field:
             f.display()
 
-
+    # lọc sân cho ra kết quả
     def filter_field(self):
         print("\nEnter filter (0 = show all)")
-
         field_id = input("Field ID: ").strip()
         field_name = input("Field Name: ").strip().lower()
         field_type = input("Field Type: ").strip()
-
+        # những kế quả phù hợp sẽ nằm ở results
         results = []
-
+        # thêm điềm kiện, 0 thì lấy hết
         for f in self.field:
             if field_id != "0" and field_id != f.field_id:
                 continue
@@ -117,6 +127,7 @@ class FieldManagement():
         if not results:
             print("No result found")
             return
+        # format cho đẹp
         print("{:<10}{:<12}{:<10}{:<10}{:<12}".format(
             "ID",
             "Name",
@@ -127,6 +138,8 @@ class FieldManagement():
         print("-" * 55)
         for f in self.field:
             f.display()
+
+    # xoá sân
     def del_field(self):
         field_id = input("Enter Field ID to delete: ").strip()
         for f in self.field:
@@ -139,6 +152,8 @@ class FieldManagement():
                 print("Field set to inactive")
                 return
         print("Field not found")
+
+    # giao diện chính
     def main():
       manager = FieldManagement()
       while True:
@@ -149,9 +164,9 @@ class FieldManagement():
         print("4. Filter Fields")
         print("5. Delete Fields")
         print("0. Exit")
-
         choice = input("Choose: ").strip()
 
+        # các lựa chọn
         if choice == "1":
             manager.add_field()
         elif choice == "2":
