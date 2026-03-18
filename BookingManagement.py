@@ -174,7 +174,7 @@ def main():
         elif choice == "3":
 
             bid = input("Booking ID: ")
-            status = input("Status (pending/confirmed/cancelled): ")
+            status = input("Status (confirmed/cancelled): ")
 
             manager.edit_booking_status(bid, status)
 
