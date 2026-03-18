@@ -1,80 +1,51 @@
-from data import save_payments_to_file, load_payments_from_file, load_bookings_from_file, load_customers_from_file
-import os
+from data import save_payment_to_file, load_payment_from_file, load_booking_from_file, load_customer_from_file, PaymentRecord
+from BookingManagement import BookingManagement
 
-class Payment:
-    def __init__(self, payment_id, payment_method, payment_status, payment_date, payment_total, booking_id):
-        self.payment_id = payment_id
-        self.payment_method = payment_method
-        self.payment_status = payment_status
-        self.payment_date = payment_date
-        self.payment_total = payment_total
-        self.booking_id = booking_id
-    def to_string(self):
-        return f"{self.payment_id},{self.payment_method},{self.payment_status},{self.payment_date},{self.payment_total},{self.booking_id}"
-    @staticmethod
-    def from_string(self):
-      part = data.strip().split(",")
-      return Payment(
-          part[0],
-          part[1],
-          part[2],
-          part[3],
-          float(part[4]),
-          part[5]
-    )
-    def display(self):
-      print("{:<10}{:<12}{:<10}{:<10}{:<10}{:<12}".format(
-        self.payment_id,
-        self.payment_method,
-        self.payment_status,
-        self.payment_date,
-        self.payment_total,
-        self.booking_id,
-    ))
 class PaymentManagement:
     def __init__(self):
-        try:
-            self.payments = load_payments_from_file()
-        except Exception as e:
-            print("Error loading payments:", e)
-            self.payments = []
-
-    # từ string sang object
-    def load_payment(self):
-        if not os.path.exists(self.payment_file):
-            return
-        with open(self.payment_file, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip() == "":
-                continue
-            try:
-                self.payments.append(Payment.from_string(line))
-            except:
-                continue
-
+        self.payments = load_payment_from_file()
+        self.bookingManager = BookingManagement()
+        
     # từ object sang string
     def save_payment(self):
-        with open(self.payment_file, "w", encoding="utf-8") as f:
-            for i in self.payments:
-                f.write(i.to_string() + "\n")
+        save_payment_to_file(self.payments)
 
     # tạo ID tự động
     def generate_payment_id(self):
+        # 1. Immediate guard for empty list
         if not self.payments:
             return "P0001"
-        last = max(self.payment, key=lambda f: (f.payment_id[0], int(f.payment_id[1:])))
-        last_id = last.payment_id
-        letter = last_id[0]
-        number = int(last_id[1:]) + 1
-        return f"{letter}{number:04d}"
-    
-    # lấy tên khách cho phần add_payment
-    def get_customer_name(customer_id, customers):
-    for c in customers:
-        if c.customer_id == customer_id:
-            return c.customer_name
-    return "Unknown"
 
+        def parse_payment_id(payment_obj):
+            """Safely extracts (Letter, Number) from 'P0001'."""
+            p_id = str(payment_obj.payment_id).strip()
+            
+            # Guard against empty strings or None values in the data
+            if not p_id:
+                return ("P", 0)
+                
+            try:
+                prefix = p_id[0]
+                # Try to convert everything after the first letter to an integer
+                number = int(p_id[1:])
+                return (prefix, number)
+            except (ValueError, IndexError):
+                # If the ID is just "P" or malformed like "P-ABC", 
+                # we return 0 so max() can still function.
+                return (p_id[0] if p_id else "P", 0)
+
+        try:
+            # 2. Find the highest ID using our safe helper
+            last_record = max(self.payments, key=parse_payment_id)
+            letter, last_number = parse_payment_id(last_record)
+            
+            # 3. Increment and format with 4-digit padding (0001)
+            return f"{letter}{last_number + 1:04d}"
+
+        except Exception:
+            # 4. Final safety net: If max() fails, use the count to stay unique
+            return f"P{len(self.payments) + 1:04d}"
+    
     # thêm khoản thanh toán
     def add_payment(self):
         print("\n=== Add Payment ===")
@@ -95,33 +66,14 @@ class PaymentManagement:
                 print("Invalid amount! Must be a number.")
                 return
             
-            bookings = load_bookings_from_file()
-            customers = load_customers_from_file()
-             
-            if not bookings:
-                print("No bookings available!")
-                return
-            
-            customer_dict = {c.customer_id: c.customer_name for c in customers}
-            
-            print("\n=== Booking List ===")
-            for b in bookings:
-                customer_name = customer_dict.get(b.customer_id, customers)
-                print(f"[{b.booking_id}] - Customer: {customer_name}")
-                
             booking_id = input("Enter booking ID: ").strip()
-            
-            if not any(b.booking_id == booking_id for b in bookings):
-                print("Booking ID not found!")
+            if not self.bookingManager.get_booking_by_id(booking_id):
+                print("Booking not found!")
                 return
-            
-            new_payment = Payment(payment_id, payment_method, payment_status, payment_date, payment_total, booking_id)
+
+            new_payment = PaymentRecord(payment_id, booking_id, payment_method,payment_total, payment_status, payment_date , )
             self.payments.append(new_payment)
-            try:
-                save_payments_to_file(self.payments)
-            except Exception as e:
-                print("Error saving payment:", e)
-                return
+            self.save_payment()
             
             print("Payment added successfully!")
 
@@ -130,14 +82,13 @@ class PaymentManagement:
 
     # chỉnh trạng thái thanh toán
     def edit_payment_status(self):
-        #payment_dict = {p.payment_id: p.payment_status for p in payments}
         try:
             if not self.payments:
                 print("No payments found!")
                 return
             
             print("\n=== Payment List ===")
-            for p in payments:
+            for p in self.payments:
                 print(f"[{p.payment_id}] - Status: {p.payment_status}")
                 
             payment_id = input("Enter payment ID to update: ").strip()
@@ -153,7 +104,7 @@ class PaymentManagement:
                     p.payment_status = new_status
 
                     try:
-                        save_payments_to_file(self.payments)
+                        save_payment_to_file(self.payments)
                     except Exception as e:
                         print("Error saving changes:", e)
                         return
@@ -184,8 +135,8 @@ class PaymentManagement:
                     "Booking ID"
                 ))
                 print("-" * 60)
-                for p in self.payment:
-                    p.display()
+                for p in self.payments:
+                    print(p)
 
         except Exception as e:
             print("Unexpected error in view_payment_list:", e)
@@ -208,3 +159,31 @@ class PaymentManagement:
         except Exception as e:
             print("Unexpected error in calc_total_revenue:", e)
             return 0
+
+    def menu(self):
+        while True:
+            print("\n=== Payment Management ===")
+            print("1. Add Payment")
+            print("2. Edit Payment Status")
+            print("3. View Payment List")
+            print("4. Calculate Total Revenue")
+            print("0. Back to Main Menu")
+
+            choice = input("Enter your choice (1-5): ").strip()
+
+            if choice == "1":
+                self.add_payment()
+            elif choice == "2":
+                self.edit_payment_status()
+            elif choice == "3":
+                self.view_payment_list()
+            elif choice == "4":
+                self.calc_total_revenue()
+            elif choice == "0":
+                break
+            else:
+                print("Invalid choice! Please try again.")
+
+if __name__ == "__main__":
+    manager = PaymentManagement()
+    manager.menu()

@@ -1,18 +1,22 @@
+from FieldManagement import FieldManagement
+from BookingManagement import BookingManagement
+from CustomerManagement import CustomerManagement
+from PaymentManagement import PaymentManagement
 class Menu:
 
     def show(self):
-        print("\n===== FOOTBALL FIELD MANAGEMENT =====")
+        print("\n===== MINI FOOTBALL FIELD MANAGEMENT =====")
         print("1. Field_management")
         print("2. Booking_management")
         print("3. Customer_management")
         print("4. Revenue_management")
-        print("5. Exit")
+        print("0. Exit")
 
     def process(self):
-        field = Field_management()
-        book = Booking_management()
-        customer = Customer_management()
-        revenue = Revenue_management()
+        field = FieldManagement()
+        book = BookingManagement()
+        customer = CustomerManagement()
+        payment = PaymentManagement()
 
         while True:
             self.show()
@@ -28,9 +32,9 @@ class Menu:
                 customer.menu()
 
             elif choice == "4":
-                revenue.menu()
+                payment.menu()
 
-            elif choice == "5":
+            elif choice == "0":
                 print("Exiting program...")
                 break
 

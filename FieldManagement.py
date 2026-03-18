@@ -1,65 +1,47 @@
-class Field:
-    def __init__(self,field_id, field_name, field_status, field_type, field_cost):
-        self.field_id = field_id
-        self.field_name = field_name
-        self.field_type = field_type
-        self.field_cost = field_cost
-        self.field_status = field_status
-    def to_string(self):
-      return f"{self.field_id},{self.field_name},{self.field_type},{self.field_cost},{self.field_status}"
-    @staticmethod
-    def from_string(self):
-      part = data.strip().split(",")
-      return Booking(
-          part[0],
-          part[1],
-          part[2],
-          float(part[3]),
-          part[4] if len(parts) > 3 else "active"
-    )
-    def display(self):
-      print("{:<10}{:<12}{:<10}{:<10}{:<12}".format(
-        self.field_id,
-        self.field_name,
-        self.field_type,
-        self.field_cost,
-        self.field_status
-    ))
-class FieldManagement():
+from data import FieldRecord, save_field_to_file, load_field_from_file
+
+class FieldManagement:
     def __init__(self):
-        self.fields = []
-        self.field_file = "field.txt"
-        self.load_field()
-        
-    # từ string sang object
-    def load_field(self):
-        if not os.path.exists(self.field_file):
-            return
-        with open(self.field_file, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip() == "":
-                continue
-            try:
-                self.fields.append(Field.from_string(line))
-            except:
-                continue
+        self.fields = load_field_from_file()
 
     # từ object sang string
-    def save_field(self):
-        with open(self.field_file, "w", encoding="utf-8") as f:
-            for i in self.fields:
-                f.write(i.to_string() + "\n")
+    def save_fields(self):
+        save_field_to_file(self.fields)
 
     # tạo ID tự động
     def generate_field_id(self):
+    # 1. Handle empty list immediately
         if not self.fields:
             return "F0001"
-        last = max(self.fields, key=lambda f: (f.field_id[0], int(f.field_id[1:])))
-        last_id = last.field_id
-        letter = last_id[0]
-        number = int(last_id[1:]) + 1
-        return f"{letter}{number:04d}"
 
+        def parse_id_safely(field_obj):
+            """Helper to extract (Prefix, NumericValue) from an ID string."""
+            f_id = str(field_obj.field_id).strip()
+            if not f_id:
+                return ("F", 0)
+            
+            try:
+                prefix = f_id[0]
+                # Try to grab everything after the first character as an int
+                number = int(f_id[1:])
+                return (prefix, number)
+            except (ValueError, IndexError):
+                # If it's just "F" or "F-abc", treat number as 0 so it doesn't crash max()
+                return (f_id[0] if f_id else "F", 0)
+
+        try:
+            # 2. Find the record with the highest ID based on our safe parser
+            last_record = max(self.fields, key=parse_id_safely)
+            letter, last_number = parse_id_safely(last_record)
+            
+            # 3. Increment and format with 4-digit padding
+            return f"{letter}{last_number + 1:04d}"
+
+        except Exception:
+            # 4. Final safety net: if max() fails for any reason, 
+            # use the count of fields to create a unique ID.
+            return f"F{len(self.fields) + 1:04d}"
+        
     # thêm sân
     def add_field(self):
         print("\n=== Add Field ===")
@@ -85,14 +67,14 @@ class FieldManagement():
             print("Invalid input")
 
         # Tạo object
-        new_field = Field(field_id, field_name, field_type, field_cost)
-        self.field.append(new_field)
-        self.save_field()
+        new_field = FieldRecord(field_id, field_name, field_type, float(field_cost), "Active")
+        self.fields.append(new_field)
+        self.save_fields()
         print("Save Succesfully")
 
     # xem sân
     def view_field_list(self):
-        if not self.field:
+        if not self.fields:
             print("No Field")
             return
         # format cho đẹp
@@ -104,8 +86,8 @@ class FieldManagement():
             "Status"
         ))
         print("-" * 55)
-        for f in self.field:
-            f.display()
+        for f in self.fields:
+            print(f)
 
     # lọc sân cho ra kết quả
     def filter_field(self):
@@ -116,14 +98,14 @@ class FieldManagement():
         # những kế quả phù hợp sẽ nằm ở results
         results = []
         # thêm điềm kiện, 0 thì lấy hết
-        for f in self.field:
+        for f in self.fields:
             if field_id != "0" and field_id != f.field_id:
                 continue
             if field_name != "0" and field_name not in f.field_name.lower():
                 continue
             if field_type != "0" and field_type != f.field_type:
                 continue
-            results.append(c)
+            results.append(f)
         if not results:
             print("No result found")
             return
@@ -136,26 +118,62 @@ class FieldManagement():
             "Status"
         ))
         print("-" * 55)
-        for f in self.field:
-            f.display()
+        for f in self.fields:
+            print(f)
 
+    def edit_field(self):
+        if not self.fields:
+            print("No fields found.")
+            return
+        field_id = input("Enter Field ID to edit: ").strip()
+        for c in self.fields:
+            if c.field_id == field_id :
+                print("Leave blank to keep current value.")
+                new_name = input(f"New Name ({c.field_name}): ").strip()
+
+                print("Leave blank to keep current value.")
+                new_type = input(f"New Type ({c.field_type}): ").strip()
+
+                if new_name:
+                    c.field_name = new_name
+                if new_type:
+                    c.new_type = new_type
+
+                self.save_fields()
+                print("Field updated successfully!")
+                return   
     # xoá sân
     def del_field(self):
         field_id = input("Enter Field ID to delete: ").strip()
-        for f in self.field:
+        for f in self.fields:
             if f.field_id == field_id:
                 if f.status == "inactive":
                     print("Field already inactive")
                     return
                 f.status = "inactive"
-                self.save_field()
+                self.save_fields()
                 print("Field set to inactive")
                 return
         print("Field not found")
-
+    def check_field_active(self, field_id):
+        for f in self.fields:
+            if f.field_id == field_id:
+                if f.field_status.lower() == "active":
+                    return True
+                else:
+                    print("Field is inactive")
+                    return False
+        print("Field not found/inactive")
+        return False
+    
+    def field_cost(self, field_id):
+        for f in self.fields:
+            if f.field_id == field_id:
+                return f.field_cost
+        return None
+    
     # giao diện chính
-    def main():
-      manager = FieldManagement()
+    def menu(self):
       while True:
         print("\n===== FIELD MANAGEMENT =====")
         print("1. Add Field")
@@ -163,24 +181,25 @@ class FieldManagement():
         print("3. Edit Field")
         print("4. Filter Fields")
         print("5. Delete Fields")
-        print("0. Exit")
+        print("0. <<<Back")
         choice = input("Choose: ").strip()
 
         # các lựa chọn
         if choice == "1":
-            manager.add_field()
+            self.add_field()
         elif choice == "2":
-            manager.view_field_list()
+            self.view_field_list()
         elif choice =="3":
-            manager.edit_customer()
+            self.edit_field()
         elif choice =="4":
-            manager.filter_field()
-        elif choice =="6":
-            manager.del_field()
+            self.filter_field()
+        elif choice =="5":
+            self.del_field()
         elif choice == "0":
-            print("Exiting...")
             break
         else:
             print("Invalid choice.")
+
 if __name__ == "__main__":
-    main()
+    manager = FieldManagement()
+    manager.menu()

@@ -1,0 +1,2 @@
+P0001,B0001,MoMo,1000.0,paid,MoMo,MoMo
+P0002,B0001,Zalo Pay,500.0,paid,Zalo Pay,Zalo Pay
