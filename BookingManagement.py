@@ -104,7 +104,7 @@ class BookingManagement:
         booking = Booking(
             booking_id,
             datetime.now().strftime("%Y-%m-%d"),
-            "pending",
+            "confirm",
             start,
             end,
             total_price,
